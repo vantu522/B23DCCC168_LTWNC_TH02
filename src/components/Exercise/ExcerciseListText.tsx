@@ -8,9 +8,12 @@ interface ExerciseListContextType {
   error: string;
   filter: ExerciseFilter;
   setFilter: (filter: ExerciseFilter) => void;
+  searchTerm: string;
+  setSearchTerm: (term: string) => void;
   toggleComplete: (id: number) => void;
   deleteExercise: (id: number) => void;
   addExercise: (data: createExercise) => void;
+  addMultipleExercises: (data: createExercise[]) => void;
 }
 
 const ExerciseListContext = createContext<ExerciseListContextType | null>(null);

@@ -1,9 +1,15 @@
 import { configureStore } from "@reduxjs/toolkit";
 import exerciseReducer from '../features/exercises/exerciseSlice'
+import { logger } from 'redux-logger';
+
 export const store = configureStore({
   reducer: {
     exercises: exerciseReducer
   },
+  middleware: (getDefaultMiddleware) => 
+    import.meta.env.DEV 
+      ? getDefaultMiddleware().concat(logger)
+      : getDefaultMiddleware(),
 });
 
 store.subscribe(() => {

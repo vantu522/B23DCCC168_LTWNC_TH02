@@ -67,7 +67,7 @@ body {
 .filter-btn {
   padding: 0.4rem 1rem;
   border-radius: 20px;
-  border: 1.5px solid #cbd5e1;
+  border: 1.5px solid #94a3b8;
   background: white;
   color: #475569;
   font-size: 0.85rem;
@@ -169,7 +169,7 @@ body {
 
 .card-name--done {
   text-decoration: line-through;
-  color: #94a3b8;
+  color: #64748b;
   font-weight: 400;
 }
 
@@ -219,7 +219,7 @@ body {
 .empty-state {
   text-align: center;
   padding: 4rem 2rem;
-  color: #94a3b8;
+  color: #64748b;
 }
 
 /* ===== MODAL OVERLAY ===== */
@@ -298,7 +298,7 @@ body {
 .form-group select {
   width: 100%;
   padding: 0.55rem 0.85rem;
-  border: 1.5px solid #cbd5e1;
+  border: 1.5px solid #94a3b8;
   border-radius: 8px;
   font-size: 0.9rem;
   color: #1e293b;
@@ -321,7 +321,7 @@ body {
 .btn-cancel {
   padding: 0.55rem 1.2rem;
   border-radius: 8px;
-  border: 1.5px solid #cbd5e1;
+  border: 1.5px solid #94a3b8;
   background: white;
   color: #475569;
   font-weight: 600;
@@ -339,3 +339,50 @@ body {
   font-size: 0.9rem;
   cursor: pointer;
 }
+
+/* ===== THEMES ===== */
+:root {
+  --bg-color: #f0f2f5;
+  --text-color: #1a1a2e;
+  --card-bg: white;
+  --border-color: #e2e8f0;
+}
+:root[data-theme='dark'] {
+  --bg-color: #1a1a2e;
+  --text-color: #f0f2f5;
+  --card-bg: #16213e;
+  --border-color: #3b82f6;
+}
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  transition: all 0.3s ease;
+}
+.app-header h1 { color: var(--text-color); }
+.exercise-card { background: var(--card-bg); border-color: var(--border-color); color: var(--text-color); }
+.card-name { color: var(--text-color); }
+
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.theme-select {
+  padding: 0.5rem 0.85rem;
+  border: 1.5px solid var(--border-color, #94a3b8);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: var(--text-color, #1e293b);
+  background: var(--card-bg, white);
+  outline: none;
+  cursor: pointer;
+  font-weight: 500;
+  height: 38px; /* Match standard button height roughly */
+}
+
+.theme-select:focus {
+  border-color: #3b82f6;
+}
+

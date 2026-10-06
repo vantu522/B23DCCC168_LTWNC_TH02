@@ -58,6 +58,21 @@ const exerciseSlice = createSlice({
       state.exercises.unshift(newExercise); // thêm vào đầu danh sách
     },
 
+    addMultipleExercises: (state, action: PayloadAction<createExercise[]>) => {
+      let maxId = state.exercises.length
+        ? Math.max(...state.exercises.map((exercise) => exercise.id))
+        : 0;
+      
+      const newExercises: Exercise[] = action.payload.map(payload => ({
+        ...payload,
+        id: ++maxId,
+        excerciseStatus: ExcerciseStatus.PENDING,
+        createdAt: new Date(),
+      }));
+
+      state.exercises.unshift(...newExercises);
+    },
+
     toggleComplete: (state, action: PayloadAction<number>) => {
       const exercise = state.exercises.find(
         (item) => item.id === action.payload,
@@ -96,6 +111,7 @@ const exerciseSlice = createSlice({
 
 export const {
   addExercise,
+  addMultipleExercises,
   deleteExercise,
   setFilter,
   toggleComplete,

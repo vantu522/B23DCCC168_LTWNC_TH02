@@ -46,7 +46,7 @@ const AddExerciseForm = () => {
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Thêm bài tập mới</h2>
-              <button className="btn-close-modal" onClick={handleClose}>✕</button>
+              <button className="btn-close-modal" onClick={handleClose} aria-label="Đóng">✕</button>
             </div>
 
             <form onSubmit={handleSubmit}>

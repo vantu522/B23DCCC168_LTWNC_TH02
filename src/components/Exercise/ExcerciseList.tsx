@@ -1,19 +1,23 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, useCallback, useMemo, type ReactNode } from "react";
+import { useDebounce } from "../../hooks/useDebounce";
+import { List } from 'react-window';
 
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import {
   addExercise as addExerciseAction,
+  addMultipleExercises as addMultipleExercisesAction,
   deleteExercise as deleteExerciseAction,
   fetchExercises,
   setFilter as setFilterAction,
   toggleComplete as toggleCompleteAction,
 } from "../../features/exercises/exerciseSlice";
-import type { ExerciseFilter } from "../../types/excercise";
-import { getDeadlineText, isOverdue } from "../../utils/excercise";
+import type { ExerciseFilter, createExercise, Exercise } from "../../types/excercise";
+import { isOverdue } from "../../utils/excercise";
 import ExerciseListContext, {
   useExerciseListContext,
 } from "./ExcerciseListText";
 import { usePinStore } from "../../hooks/usePinStore";
+import AssignmentCard from "./AssignmentCard";
 
 interface ExerciseListProps {
   children: ReactNode;
@@ -25,53 +29,111 @@ const ExerciseList = ({ children }: ExerciseListProps) => {
     (state) => state.exercises
   );
 
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
   useEffect(() => {
     dispatch(fetchExercises());
   }, [dispatch]);
 
-  const filteredExercises = exercises.filter((exercise) => {
-    switch (filter) {
-      case "COMPLETED":
-        return exercise.excerciseStatus === "COMPLETED";
-      case "PENDING":
-        return exercise.excerciseStatus === "PENDING";
-      case "OVERDUE":
-        return isOverdue(exercise);
-      case "ALL":
-      default:
-        return true;
-    }
-  });
+  const filteredExercises = useMemo(() => {
+    return exercises.filter((exercise) => {
+      let matchesFilter: boolean;
+      switch (filter) {
+        case "COMPLETED":
+          matchesFilter = exercise.excerciseStatus === "COMPLETED"; break;
+        case "PENDING":
+          matchesFilter = exercise.excerciseStatus === "PENDING"; break;
+        case "OVERDUE":
+          matchesFilter = isOverdue(exercise); break;
+        case "ALL":
+        default:
+          matchesFilter = true; break;
+      }
+
+      const matchesSearch = 
+        exercise.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
+        exercise.subject.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+
+      return matchesFilter && matchesSearch;
+    });
+  }, [exercises, filter, debouncedSearchTerm]);
+
+  const setFilter = useCallback((nextFilter: ExerciseFilter) => {
+    dispatch(setFilterAction(nextFilter));
+  }, [dispatch]);
+
+  const addExercise = useCallback((data: createExercise) => {
+    dispatch(addExerciseAction(data));
+  }, [dispatch]);
+
+  const addMultipleExercises = useCallback((data: createExercise[]) => {
+    dispatch(addMultipleExercisesAction(data));
+  }, [dispatch]);
+
+  const toggleComplete = useCallback((id: number) => {
+    dispatch(toggleCompleteAction(id));
+  }, [dispatch]);
+
+  const deleteExercise = useCallback((id: number) => {
+    dispatch(deleteExerciseAction(id));
+  }, [dispatch]);
+
+  const contextValue = useMemo(() => ({
+    exercises,
+    filteredExercises,
+    loading,
+    error,
+    filter,
+    setFilter,
+    searchTerm,
+    setSearchTerm,
+    addExercise,
+    addMultipleExercises,
+    toggleComplete,
+    deleteExercise,
+  }), [
+    exercises, filteredExercises, loading, error, filter, searchTerm,
+    setFilter, addExercise, addMultipleExercises, toggleComplete, deleteExercise
+  ]);
 
   return (
-    <ExerciseListContext.Provider
-      value={{
-        exercises,
-        filteredExercises,
-        loading,
-        error,
-        filter,
-        setFilter: (nextFilter: ExerciseFilter) => {
-          dispatch(setFilterAction(nextFilter));
-        },
-        addExercise: (data) => {
-          dispatch(addExerciseAction(data));
-        },
-        toggleComplete: (id) => {
-          dispatch(toggleCompleteAction(id));
-        },
-        deleteExercise: (id) => {
-          dispatch(deleteExerciseAction(id));
-        },
-      }}
-    >
+    <ExerciseListContext.Provider value={contextValue}>
       {children}
     </ExerciseListContext.Provider>
   );
 };
 
+/* ── Search Bar ── */
+function SearchBar() {
+  const { searchTerm, setSearchTerm } = useExerciseListContext();
+
+  return (
+    <div className="search-bar" style={{ marginBottom: "1rem" }}>
+      <input
+        type="text"
+        placeholder="🔍 Tìm kiếm bài tập..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        aria-label="Tìm kiếm bài tập"
+        style={{
+          width: "100%",
+          padding: "0.6rem 1rem",
+          borderRadius: "8px",
+          border: "1.5px solid var(--border-color, #94a3b8)",
+          background: "var(--card-bg, white)",
+          color: "var(--text-color, #1e293b)",
+          outline: "none"
+        }}
+      />
+    </div>
+  );
+}
+ExerciseList.Search = SearchBar;
+
 /* ── Filter Bar ── */
-ExerciseList.Filter = () => {
+function FilterBar() {
   const { filter, setFilter } = useExerciseListContext();
 
   const filters: { label: string; value: ExerciseFilter }[] = [
@@ -95,10 +157,20 @@ ExerciseList.Filter = () => {
       ))}
     </div>
   );
-};
+}
+ExerciseList.Filter = FilterBar;
+
 
 /* ── Exercise Items ── */
-ExerciseList.Items = () => {
+interface MyRowData {
+  exercises: Exercise[];
+  isPinned: (id: number) => boolean;
+  togglePin: (id: number) => void;
+  toggleComplete: (id: number) => void;
+  deleteExercise: (id: number) => void;
+}
+
+function ItemsList() {
   const { filteredExercises, loading, error, toggleComplete, deleteExercise, filter } =
     useExerciseListContext();
   
@@ -121,85 +193,41 @@ ExerciseList.Items = () => {
     return pinB - pinA;
   });
 
-  const getBadgeClass = (status: string) => {
-    if (status === "COMPLETED") return "badge badge-completed";
-    if (status === "OVERDUE")   return "badge badge-overdue";
-    return "badge badge-pending";
+  const rowProps: MyRowData = {
+    exercises: sortedExercises,
+    isPinned,
+    togglePin,
+    toggleComplete,
+    deleteExercise,
   };
 
-  const translateStatus = (status: string) => {
-    if (status === "COMPLETED") return "Đã hoàn thành";
-    if (status === "OVERDUE")   return "Quá hạn";
-    return "Chưa hoàn thành";
-  };
-
-  const getPriorityClass = (priority: string) => {
-    if (priority === "HIGH")   return "priority-badge priority-high";
-    if (priority === "MEDIUM") return "priority-badge priority-medium";
-    return "priority-badge priority-low";
-  };
-
-  const getPriorityLabel = (priority: string) => {
-    if (priority === "HIGH")   return "Cao";
-    if (priority === "MEDIUM") return "Trung bình";
-    return "Thấp";
+  const Row = ({ index, style, exercises, isPinned, togglePin, toggleComplete, deleteExercise }: MyRowData & { index: number, style: React.CSSProperties }) => {
+    const exercise = exercises[index];
+    return (
+      <div style={{ ...style, paddingBottom: '1rem' }}>
+        <AssignmentCard 
+          exercise={exercise} 
+          isPinned={isPinned(exercise.id)} 
+          togglePin={togglePin} 
+          toggleComplete={toggleComplete} 
+          deleteExercise={deleteExercise} 
+        />
+      </div>
+    );
   };
 
   return (
     <div className="exercise-list" key={filter}>
-      {sortedExercises.map((exercise) => (
-        <div key={exercise.id} className={`exercise-card ${isPinned(exercise.id) ? "pinned" : ""}`}>
-          <div className="card-top">
-            <span className="card-subject">
-              {isPinned(exercise.id) && <span style={{marginRight: 4}}>📌</span>}
-              {exercise.subject}
-            </span>
-            <span className={getBadgeClass(exercise.excerciseStatus)}>
-              {translateStatus(exercise.excerciseStatus)}
-            </span>
-          </div>
-
-          {/* Checkbox + tên bài tập */}
-          <label className="card-name-row">
-            <input
-              type="checkbox"
-              className="card-checkbox"
-              checked={exercise.excerciseStatus === "COMPLETED"}
-              onChange={() => toggleComplete(exercise.id)}
-            />
-            <span className={`card-name ${exercise.excerciseStatus === "COMPLETED" ? "card-name--done" : ""}`}>
-              {exercise.name}
-            </span>
-          </label>
-
-          <div className="card-meta">
-            <span>{getDeadlineText(exercise.deadline)}</span>
-            <span>
-              Ưu tiên:
-              <span className={getPriorityClass(exercise.priority)}>
-                {getPriorityLabel(exercise.priority)}
-              </span>
-            </span>
-          </div>
-
-          <div className="card-actions">
-            <button
-              className="btn"
-              onClick={() => togglePin(exercise.id)}
-            >
-              {isPinned(exercise.id) ? "Bỏ ghim" : "Ghim"}
-            </button>
-            <button
-              className="btn btn-delete"
-              onClick={() => deleteExercise(exercise.id)}
-            >
-              Xoá
-            </button>
-          </div>
-        </div>
-      ))}
+      <List<MyRowData>
+        rowCount={sortedExercises.length}
+        rowHeight={140}
+        rowProps={rowProps}
+        rowComponent={Row as any}
+        style={{ height: 600, width: "100%" }}
+      />
     </div>
   );
-};
+}
+ExerciseList.Items = ItemsList;
 
 export default ExerciseList;
