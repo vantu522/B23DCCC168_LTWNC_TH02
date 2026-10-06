@@ -60,4 +60,19 @@ describe('AssignmentCard Component', () => {
     fireEvent.click(pinBtn);
     expect(mockTogglePin).toHaveBeenCalledWith(1);
   });
+
+  it('calls deleteExercise when Xoá button is clicked', () => {
+    render(
+      <AssignmentCard 
+        exercise={mockExercise} 
+        isPinned={false}
+        togglePin={mockTogglePin}
+        toggleComplete={mockToggleComplete}
+        deleteExercise={mockDelete}
+      />
+    );
+    const deleteBtn = screen.getByText('Xoá');
+    fireEvent.click(deleteBtn);
+    expect(mockDelete).toHaveBeenCalledWith(1);
+  });
 });
